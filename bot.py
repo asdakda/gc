@@ -49,7 +49,7 @@ except ValueError:
 if not BOT_TOKEN or "YOUR_TELEGRAM_BOT_TOKEN_HERE" in BOT_TOKEN:
     logger.warning("BOT_TOKEN is not set properly. Please set it in config.json or environment variables.")
 
-bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
+bot = telebot.TeleBot(BOT_TOKEN, threaded=False) if BOT_TOKEN else None
 
 # --- BACKGROUND ASYNCIO LOOP FOR PYROGRAM CLIENTS ---
 background_loop = asyncio.new_event_loop()
@@ -152,7 +152,7 @@ class DBManager:
         
         self.is_postgres = False
         sqlite_file = os.path.join(CONFIG_DIR, "bot.db")
-        return sqlite3.connect(sqlite_file)
+        return sqlite3.connect(sqlite_file, timeout=30.0)
 
     def execute_query(self, query, params=(), commit=False, fetch=None):
         conn = self.get_connection()
@@ -177,6 +177,17 @@ class DBManager:
             conn.close()
 
     def init_db(self):
+        # Enable Write-Ahead Logging (WAL) for SQLite to handle concurrency safely
+        if not self.is_postgres:
+            try:
+                conn = self.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                logger.error(f"Failed to set WAL mode: {e}")
+
         # 1. Group settings table
         query_group_settings = """
         CREATE TABLE IF NOT EXISTS group_settings (
