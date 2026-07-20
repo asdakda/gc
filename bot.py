@@ -10,6 +10,9 @@ from telebot.apihelper import ApiTelegramException
 import time
 import threading
 import asyncio
+import http.server
+import socketserver
+import urllib.request
 from pyrogram import Client, enums
 from pyrogram.errors import SessionPasswordNeeded
 
@@ -1335,10 +1338,57 @@ def run_auto_kick_loop():
 auto_kick_thread = threading.Thread(target=run_auto_kick_loop, daemon=True)
 auto_kick_thread.start()
 
+# --- WEB SERVICE KEEP-ALIVE SYSTEM ---
+def run_ping_server():
+    port = int(os.environ.get("PORT", 8080))
+    class PingHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Bot is alive and running!")
+            
+    socketserver.TCPServer.allow_reuse_address = True
+    try:
+        with socketserver.TCPServer(("", port), PingHandler) as httpd:
+            logger.info(f"Keep-alive HTTP server started on port {port}")
+            httpd.serve_forever()
+    except Exception as e:
+        logger.error(f"Failed to start HTTP keep-alive server: {e}")
+
+def run_self_ping_loop():
+    ping_url = os.environ.get("WEB_URL") or os.environ.get("PING_URL")
+    if not ping_url:
+        logger.info("No WEB_URL or PING_URL configured. Self-ping keep-alive loop skipped.")
+        return
+        
+    logger.info(f"Self-ping keep-alive loop started for: {ping_url}")
+    while True:
+        # Sleep 10 minutes (600 seconds)
+        time.sleep(600)
+        try:
+            req = urllib.request.Request(
+                ping_url, 
+                headers={'User-Agent': 'Bot-Keep-Alive'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                response.read()
+            logger.info("Keep-alive self-ping successful.")
+        except Exception as e:
+            logger.warning(f"Keep-alive self-ping failed: {e}")
+
 # --- STARTUP FUNCTION ---
 if __name__ == "__main__":
     if not BOT_TOKEN:
         logger.error("Failed to start bot: BOT_TOKEN is missing!")
     else:
+        # Start keep-alive server thread
+        logger.info("Starting keep-alive HTTP server...")
+        threading.Thread(target=run_ping_server, daemon=True).start()
+        
+        # Start self-ping loop thread
+        logger.info("Starting self-ping keep-alive loop...")
+        threading.Thread(target=run_self_ping_loop, daemon=True).start()
+
         logger.info("Starting Group Helper Bot polling...")
         bot.infinity_polling()
