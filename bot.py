@@ -50,6 +50,8 @@ if not BOT_TOKEN or "YOUR_TELEGRAM_BOT_TOKEN_HERE" in BOT_TOKEN:
     logger.warning("BOT_TOKEN is not set properly. Please set it in config.json or environment variables.")
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False) if BOT_TOKEN else None
+if bot:
+    telebot.apihelper.SESSION_TIME_OUT = 30
 
 # --- BACKGROUND ASYNCIO LOOP FOR PYROGRAM CLIENTS ---
 background_loop = asyncio.new_event_loop()
@@ -1349,7 +1351,6 @@ def run_auto_kick_loop():
 auto_kick_thread = threading.Thread(target=run_auto_kick_loop, daemon=True)
 auto_kick_thread.start()
 
-# --- WEB SERVICE KEEP-ALIVE SYSTEM ---
 def run_ping_server():
     port = int(os.environ.get("PORT", 8080))
     class PingHandler(http.server.SimpleHTTPRequestHandler):
@@ -1359,13 +1360,15 @@ def run_ping_server():
             self.end_headers()
             self.wfile.write(b"Bot is alive and running!")
             
-    socketserver.TCPServer.allow_reuse_address = True
-    try:
-        with socketserver.TCPServer(("", port), PingHandler) as httpd:
-            logger.info(f"Keep-alive HTTP server started on port {port}")
-            httpd.serve_forever()
-    except Exception as e:
-        logger.error(f"Failed to start HTTP keep-alive server: {e}")
+    while True:
+        try:
+            socketserver.TCPServer.allow_reuse_address = True
+            with socketserver.TCPServer(("", port), PingHandler) as httpd:
+                logger.info(f"Keep-alive HTTP server started on port {port}")
+                httpd.serve_forever()
+        except Exception as e:
+            logger.error(f"HTTP keep-alive server error: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
 
 def run_self_ping_loop():
     ping_url = os.environ.get("WEB_URL") or os.environ.get("PING_URL")
