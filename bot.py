@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+print("BOT_TOKEN =", repr(BOT_TOKEN))
 OWNER_ID = os.environ.get("OWNER_ID")
 
 if os.path.exists(CONFIG_PATH):
