@@ -2,4 +2,3 @@ pyTelegramBotAPI
 psycopg2-binary
 pyrogram
 tgcrypto
-python-3.11.11
