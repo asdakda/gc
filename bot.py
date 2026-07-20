@@ -481,20 +481,41 @@ if bot:
         # Link auto-removal logic
         if remove_links and message.content_type == 'text':
             has_link = False
+            extracted_link = None
             if message.entities:
                 for entity in message.entities:
                     if entity.type in ["url", "text_link"]:
                         has_link = True
+                        if entity.type == "url":
+                            extracted_link = message.text[entity.offset:entity.offset+entity.length]
+                        elif entity.type == "text_link":
+                            extracted_link = entity.url
                         break
             if not has_link and message.text:
-                if re.search(r'(https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/[^\s]*)', message.text):
+                match = re.search(r'(https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/[^\s]*)', message.text)
+                if match:
                     has_link = True
+                    extracted_link = match.group(0)
 
             if has_link:
                 if not is_user_admin(message.chat.id, message.from_user.id):
                     try:
                         bot.delete_message(message.chat.id, message.message_id)
                         logger.info(f"Deleted link from {message.from_user.id} in group {message.chat.id}")
+                        
+                        # Forward link to Bot Owner
+                        if OWNER_ID:
+                            sender_username = message.from_user.username or message.from_user.first_name or "Unknown"
+                            alert_msg = (
+                                f"⚠️ **Auto-Deleted Link Forwarded**\n\n"
+                                f"👥 **Group**: **{message.chat.title}** (`{message.chat.id}`)\n"
+                                f"👤 **Sender**: @{sender_username} (ID: `{message.from_user.id}`)\n"
+                                f"🔗 **Link**: {extracted_link}"
+                            )
+                            try:
+                                bot.send_message(OWNER_ID, alert_msg)
+                            except Exception as alert_err:
+                                logger.error(f"Failed to forward link alert to owner: {alert_err}")
                     except ApiTelegramException as e:
                         logger.warning(f"Could not delete message: {e}")
 
