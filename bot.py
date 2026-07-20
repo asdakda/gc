@@ -815,7 +815,6 @@ if bot:
             markup.add(
                 types.InlineKeyboardButton(text=f"🔗 Link Auto-Remove: {status_links}", callback_data=f"toggle_links_{chat_id}"),
                 types.InlineKeyboardButton(text="🚷 Inactive Kick Settings", callback_data=f"inactive_menu_{chat_id}"),
-                types.InlineKeyboardButton(text="🗑️ Service Msg Deletion", callback_data=f"delmenu_{chat_id}"),
                 types.InlineKeyboardButton(text="🔙 Back to Groups", callback_data="back_to_dashboard")
             )
 
@@ -856,8 +855,6 @@ if bot:
 
             if is_userbot_configured(user_id):
                 markup.add(types.InlineKeyboardButton(text="📥 Scrape Member List (Userbot)", callback_data=f"scrape_ubot_{chat_id}"))
-            else:
-                markup.add(types.InlineKeyboardButton(text="ℹ️ Setup Userbot Scraper (/ubot)", callback_data="show_ubot_info"))
 
             markup.add(types.InlineKeyboardButton(text="🔙 Back to Main Settings", callback_data=f"manage_{chat_id}"))
 
@@ -1032,7 +1029,23 @@ if bot:
             db.execute_query("UPDATE group_settings SET remove_links = %s WHERE chat_id = %s", (new_val, chat_id), commit=True)
             
             safe_answer_callback(call.id, f"Link auto-removal: {'Enabled' if new_val else 'Disabled'}")
-            handle_callbacks(types.CallbackQuery(id=call.id, from_user=call.from_user, message=call.message, data=f"manage_{chat_id}", chat_instance=call.chat_instance))
+            
+            # Edit the reply markup dynamically
+            status_links = "🟢 ON" if new_val else "🔴 OFF"
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                types.InlineKeyboardButton(text=f"🔗 Link Auto-Remove: {status_links}", callback_data=f"toggle_links_{chat_id}"),
+                types.InlineKeyboardButton(text="🚷 Inactive Kick Settings", callback_data=f"inactive_menu_{chat_id}"),
+                types.InlineKeyboardButton(text="🔙 Back to Groups", callback_data="back_to_dashboard")
+            )
+            try:
+                bot.edit_message_reply_markup(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    reply_markup=markup
+                )
+            except Exception as e:
+                logger.error(f"Error editing reply markup: {e}")
 
         elif data.startswith("status_kick_"):
             chat_id = int(data.split("_")[2])
