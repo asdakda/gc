@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-print("BOT_TOKEN =", repr(BOT_TOKEN))
 OWNER_ID = os.environ.get("OWNER_ID")
 
 if os.path.exists(CONFIG_PATH):
@@ -1391,5 +1390,10 @@ if __name__ == "__main__":
         logger.info("Starting self-ping keep-alive loop...")
         threading.Thread(target=run_self_ping_loop, daemon=True).start()
 
-        logger.info("Starting Group Helper Bot polling...")
-        bot.infinity_polling()
+        while True:
+            try:
+                logger.info("Starting Group Helper Bot polling...")
+                bot.infinity_polling(timeout=60, long_polling_timeout=5)
+            except Exception as e:
+                logger.error(f"Polling crash detected: {e}. Restarting polling loop in 5 seconds...")
+                time.sleep(5)
