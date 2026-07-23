@@ -293,6 +293,19 @@ def is_user_admin(chat_id, user_id):
         logger.error(f"Error checking admin status for user {user_id} in {chat_id}: {e}")
         return False
 
+def is_sender_admin_or_owner(message):
+    if not message:
+        return False
+    if message.sender_chat:
+        return True
+    if not message.from_user:
+        return False
+    if OWNER_ID and message.from_user.id == OWNER_ID:
+        return True
+    if message.from_user.id == 1087968824:
+        return True
+    return is_user_admin(message.chat.id, message.from_user.id)
+
 def register_group(chat_id, chat_title):
     query = """
     INSERT INTO group_settings (chat_id, chat_title)
@@ -514,7 +527,7 @@ if bot:
                     extracted_link = match.group(0)
 
             if has_link:
-                if not is_user_admin(message.chat.id, message.from_user.id):
+                if not is_sender_admin_or_owner(message):
                     try:
                         bot.delete_message(message.chat.id, message.message_id)
                         logger.info(f"Deleted link from {message.from_user.id} in group {message.chat.id}")
